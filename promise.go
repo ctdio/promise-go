@@ -5,7 +5,7 @@ type Result struct {
   Error error
 }
 
-type asyncFunc func () (interface{}, error)
+type promiseFunction func () (interface{}, error)
 
 /**
  * Creates a simple channel that returns the result
@@ -13,7 +13,7 @@ type asyncFunc func () (interface{}, error)
  *
  * The value that is published is that of the Result struct
  */
-func New (function asyncFunc) chan *Result {
+func New (function promiseFunction) chan *Result {
   channel := make(chan *Result)
 
   // run given function in a goroutine

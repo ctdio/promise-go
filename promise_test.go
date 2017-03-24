@@ -54,12 +54,14 @@ func TestNewPromiseResult (t *testing.T) {
 func TestNewPromiseIsAsync (t *testing.T) {
   promiseComplete := false
 
-  promise := New(func () (interface{}, error) {
+  asyncFunc := func () (interface{}, error) {
     time.Sleep(1 * time.Second)
     promiseComplete = true
 
     return promiseComplete, nil
-  })
+  }
+
+  promise := New(asyncFunc)
 
   if promiseComplete == true {
     t.Fatal("function passed to promise is not running asynchronously")
