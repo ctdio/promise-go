@@ -1,4 +1,5 @@
 # promise-go
+[![Build Status](https://travis-ci.org/charlieduong94/promise-go.svg?branch=master)](https://travis-ci.org/charlieduong94/promise-go)
 
 Simple, generic promises/futures with go.
 
