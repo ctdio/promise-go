@@ -2,8 +2,6 @@
 
 Simple, generic promises/futures with go.
 
-**Note:** This package is still in development.
-
 ### Installation
 
 ```bash
@@ -90,6 +88,10 @@ func main () {
 Sometimes, you need to kick off multiple concurrent functions off at the same time. With the `CreateAll`
 function, you can do that easily. Much like the `Create` function, this returns a promise.
 
+**Note:** When dealing with combined promises, any error that is returned causes the promise
+to immediately return the result with the first error that occurs.
+
+
 ```go
 multiplePromises := promise.CreateAll(
   func () (interface{}, error) {
@@ -119,7 +121,7 @@ fmt.Println(values[1]) // 58
 
 
 There may also be times when you may want to start promises at different times, but then await for all
-of them to be resolved at a later phase.
+of them to be resolved at a later phase. This can be done with the `All` function.
 
 ```go
 promiseA := promise.Create(func () (interface{}, error) {
@@ -159,6 +161,9 @@ promiseB := promise.CreateAll(
 
 combinedPromise := promise.All(promiseA, promiseB)
 result := combinedPromise.GetResult()
+if result.Error != nil {
+  // handle error
+}
 values := result.Value.([]interface{})
 
 promiseAValue = values[0]
@@ -167,5 +172,7 @@ promiseBValues = values[1].([]interface{})
 // promiseBValues[0] == "B"
 // promiseBValues[1] == "C"
 ```
+
+
 
 
