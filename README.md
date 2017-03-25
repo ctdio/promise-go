@@ -88,17 +88,7 @@ func main () {
 #### Multiple concurrent promises
 
 Sometimes, you need to kick off multiple concurrent functions off at the same time. With the `CreateAll`
-function, you can do that easily. This returns a pointer to a `CombinedPromise`, which will resolve with
-multiple values.
-
-Calling `GetResults` with this object will return `CombinedResult` struct.
-
-```go
-type CombinedResult struct {
-  Values []interface{}
-  Error error
-}
-```
+function, you can do that easily. Much like the `Create` function, this returns a promise.
 
 ```go
 multiplePromises := promise.CreateAll(
@@ -117,30 +107,65 @@ if combinedResult.Error != nil {
   // handle errors
 }
 
-fmt.Println(combinedResult.Values) // prints "[26 58]"
+fmt.Println(combinedResult.Value) // prints "[26 58]"
+
+// since "Value" is returned as an interface{},
+// assert the value back to that of slice
+values := combinedResult.Value.([]interface{})
+
+fmt.Println(values[0]) // 26
+fmt.Println(values[1]) // 58
 ```
+
 
 There may also be times when you may want to start promises at different times, but then await for all
 of them to be resolved at a later phase.
 
 ```go
 promiseA := promise.Create(func () (interface{}, error) {
-  return doSomethingA()
+  return "A", nil
 })
 
 // do some work additional work
 
 promiseB := promise.Create(func () (interface{}, error) {
-  return doSomethingB()
+  return "B", nil
 })
 
 combinedPromise := promise.All(promiseA, promiseB)
 combinedResult := combinedPromise.GetResult()
-if combinedResult.Error != nil {
-  // handle errors
-}
 
-fmt.Println(combinedResult.Values)
+// The result can be handled like in previous example
 ```
 
-**NOTE:** At the moment, a `CombinedPromise` cannot be passed into `All` (this is coming soon).
+If you want to get fancy, you can use `All` to take multiple Promises from `Create` and `CreateAll`
+to await for them all at once.
+
+```go
+promiseA := promise.Create(func () (interface{}, error) {
+  return "A", nil
+})
+
+// do some work additional work
+
+promiseB := promise.CreateAll(
+  func () (interface{}, error) {
+    return "B", nil
+  },
+  func () (interface{}, error) {
+    return "C", nil
+  },
+)
+
+combinedPromise := promise.All(promiseA, promiseB)
+result := combinedPromise.GetResult()
+values := result.Value.([]interface{})
+
+promiseAValue = values[0]
+// promiseAValue == "A"
+promiseBValues = values[1].([]interface{})
+// promiseBValues[0] == "B"
+// promiseBValues[1] == "C"
+```
+
+

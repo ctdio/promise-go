@@ -8,11 +8,6 @@ type Result struct {
   index int
 }
 
-type CombinedResult struct {
-  Values []interface{}
-  Error error
-}
-
 type Promise struct {
   channel chan *Result
   settled bool
@@ -37,18 +32,6 @@ func (p *Promise) GetResult () *Result {
 }
 
 type promiseFunction func () (interface{}, error)
-
-type CombinedPromise struct {
-  channel chan *CombinedResult
-}
-
-func (p *CombinedPromise) GetResult () *CombinedResult {
-  result, ok := <-p.channel
-  if !ok {
-    result.Error = errors.New("Channel unexpectedly closed")
-  }
-  return result
-}
 
 /**
  * Creates a simple channel that returns the result
@@ -80,15 +63,14 @@ func awaitAggregateResults (aggregateChan chan *Result, expectedResults int) ([]
     // if there was an error, close the channel
     // and return immediately
     if result.Error != nil {
-      close(aggregateChan)
       return nil, result.Error
     }
     resultSlice[result.index] = result.Value
 
-    // if the count matches to total functions passed in,
-    // close the channel
+    // if the count matches to total functions passed in, stop listening to channel
+    // and return the result
     if count++; count == expectedResults {
-      close(aggregateChan)
+      break
     }
   }
 
@@ -100,7 +82,7 @@ func awaitAggregateResults (aggregateChan chan *Result, expectedResults int) ([]
  *
  * If any failure happens, this method will return the error immediately
  */
-func All (promises ...*Promise) (*CombinedPromise) {
+func All (promises ...*Promise) (*Promise) {
   awaitAllPromises := func () ([]interface{}, error) {
     promiseCount := len(promises)
     aggregateChan := make(chan *Result)
@@ -112,33 +94,39 @@ func All (promises ...*Promise) (*CombinedPromise) {
 
       // push result when ready
       go func () {
+        defer func () {
+          recover()
+        }()
         result := promise.GetResult()
         result.index = index
         aggregateChan <- result
       }()
     }
 
-    return awaitAggregateResults(aggregateChan, promiseCount)
+    result, err := awaitAggregateResults(aggregateChan, promiseCount)
+    close(aggregateChan)
+
+    return result, err
   }
 
-  channel := make(chan *CombinedResult)
+  channel := make(chan *Result)
 
   // create a goroutine for awaiting all results
   go func () {
     res, err := awaitAllPromises()
-    channel <- &CombinedResult{res, err}
+    channel <- &Result{res, err, 0}
     close(channel)
   }()
 
-  return &CombinedPromise{channel}
+  return &Promise{channel, false, nil}
 }
 
 /**
- * Invokes all of the functions and returns a *CombinedPromise
+ * Invokes all of the functions and returns a *Promise
  * which can be used to block when the consumer is ready
  *
  */
-func CreateAll (functions ...promiseFunction) *CombinedPromise {
+func CreateAll (functions ...promiseFunction) *Promise {
   functionCount := len(functions)
   promises := make([]*Promise, functionCount)
 

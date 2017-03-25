@@ -107,7 +107,7 @@ func TestPromiseAll (t *testing.T) {
   if result.Error != nil {
     t.Fatal("Unexpected error from promises")
   }
-  values := result.Values
+  values := result.Value.([]interface{})
   resultLength := len(values)
   if resultLength != 2 {
     t.Fatalf("Expected result length to equal 2, got %s instead", resultLength)
@@ -157,7 +157,7 @@ func TestPromiseCreateAll (t *testing.T) {
       return valueA, nil
     },
     func () (interface{}, error) {
-      time.Sleep(2* time.Second)
+      time.Sleep(2 * time.Second)
       return valueB, nil
     },
   )
@@ -167,10 +167,11 @@ func TestPromiseCreateAll (t *testing.T) {
     t.Fatal("Unexpected error returned from promise")
   }
 
-  values := result.Values
+  values := result.Value.([]interface{})
   if len(values) != 2 {
     t.Fatal("Returned result does not match number of promises passed in")
   }
+
   if values[0] != valueA || values[1] != valueB {
     t.Fatal("Returned values do not match what was returned from async functions")
   }
@@ -194,5 +195,53 @@ func TestPromiseCreateAllError (t *testing.T) {
   result := promise.GetResult()
   if result.Error == nil {
     t.Fatal("Error should have been returned from promise")
+  }
+}
+
+func TestSingleAndCombinedPromises (t *testing.T) {
+  valueA := "a"
+  valueB := "b"
+  valueC := "c"
+
+  singlePromise := Create(func () (interface{}, error) {
+    return valueA, nil
+  })
+
+  multiPromises := CreateAll(
+    func () (interface{}, error) {
+      time.Sleep(1 * time.Second)
+      return valueB, nil
+    },
+    func () (interface{}, error) {
+      time.Sleep(2 * time.Second)
+      return valueC, nil
+    },
+  )
+
+  // await all
+  combinedPromises := All(singlePromise, multiPromises)
+  result := combinedPromises.GetResult()
+  if result.Error != nil {
+    t.Fatal("Error retrieving value from promise")
+  }
+
+  values := result.Value.([]interface{})
+  if len(values) != 2 {
+    t.Fatal("Number of values do not match")
+  }
+
+  if values[0] != valueA {
+    t.Fatal("Expected first value to match return value from singlePromise")
+  }
+
+  secondSet := values[1].([]interface{})
+  if len(secondSet) != 2 {
+    t.Fatal("Number of values do not match")
+  }
+  if secondSet[0] != valueB {
+    t.Fatal("Expected secondset's first value to match return value from the first promise set")
+  }
+  if secondSet[1] != valueC {
+    t.Fatal("Expected secondset's second value to match return value from the second promise set")
   }
 }
