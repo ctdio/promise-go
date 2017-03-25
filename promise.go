@@ -61,7 +61,7 @@ func Create (function promiseFunction) *Promise {
 /**
  * awaits for results to be returned from the aggregate channel
  */
-func awaitAggregateResults (aggregateChan chan *Result, expectedResults int) ([]interface{}, error) {
+func awaitAggregatedResults (aggregateChan chan *Result, expectedResults int) ([]interface{}, error) {
   resultSlice := make([]interface{}, expectedResults)
   count := 0
   // read result from the aggregate channel
@@ -109,7 +109,7 @@ func All (promises ...*Promise) (*Promise) {
       }()
     }
 
-    result, err := awaitAggregateResults(aggregateChan, promiseCount)
+    result, err := awaitAggregatedResults(aggregateChan, promiseCount)
     close(aggregateChan)
 
     return result, err

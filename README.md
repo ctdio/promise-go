@@ -1,5 +1,6 @@
 # promise-go
 [![Build Status](https://travis-ci.org/charlieduong94/promise-go.svg?branch=master)](https://travis-ci.org/charlieduong94/promise-go)
+[![Coverage Status](https://coveralls.io/repos/github/charlieduong94/promise-go/badge.svg)](https://coveralls.io/github/charlieduong94/promise-go)
 
 Simple, generic promises/futures with go.
 
@@ -25,8 +26,8 @@ myFunc := func () (interface{}, error) {
 ```
 
 After creating that function, pass it into the package's `Create` function. This will produce
-a pointer to a `Promise` object. This object contains a method `GetResult()`, which will
-block until the promise is resolved.
+a pointer to a `Promise` object. This object provides `GetResult()` method, which will
+block until the promise is resolved or rejected.
 
 Here's what the `Result` struct looks like:
 
@@ -87,7 +88,8 @@ func main () {
 #### Multiple concurrent promises
 
 Sometimes, you need to kick off multiple concurrent functions off at the same time. With the `CreateAll`
-function, you can do that easily. Much like the `Create` function, this returns a promise.
+function, this can be done easily. Much like the `Create` function, this returns a promise. The values are
+returned in a slice and are provided in the same order that functions were passed in.
 
 **Note:** When dealing with combined promises, any error that is returned causes the promise
 to immediately return the result with the first error that occurs.
@@ -122,7 +124,8 @@ fmt.Println(values[1]) // 58
 
 
 There may also be times when you may want to start promises at different times, but then await for all
-of them to be resolved at a later phase. This can be done with the `All` function.
+of them to be resolved at a later phase. This can be done with the `All` function. Much like the `CreateAll`
+function, values from promises are returned in the order that they are passed in.
 
 ```go
 promiseA := promise.Create(func () (interface{}, error) {
