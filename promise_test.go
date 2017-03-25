@@ -2,6 +2,7 @@ package promise
 
 import (
   "time"
+  "errors"
   "testing"
 )
 
@@ -18,11 +19,11 @@ func (t testStruct) ReturnValues () (string, int) {
  * Test to ensure that promise returns a Result struct
  * that can be consumed
  */
-func TestNewPromiseResult (t *testing.T) {
+func TestCreatePromiseResult (t *testing.T) {
   strVal := "yay promises"
   intVal := 100
 
-  promise := New(func () (interface{}, error) {
+  promise := Create(func () (interface{}, error) {
     var value testStruct
 
     value.String = strVal
@@ -31,9 +32,9 @@ func TestNewPromiseResult (t *testing.T) {
     return value, nil
   })
 
-  result, ok := <-promise
-  if ok != true {
-    t.Fatal("result from promise was not received from the channel")
+  result := promise.GetResult()
+  if result.Error != nil {
+    t.Fatal("Unexpected error returned from promise")
   }
 
   newVal, isTestStruct := result.Value.(testStruct)
@@ -50,8 +51,24 @@ func TestNewPromiseResult (t *testing.T) {
   }
 }
 
+/**
+ * Test to ensure that promise returns a Result struct
+ * that can be consumed
+ */
+func TestCreatePromiseError (t *testing.T) {
+  promise := Create(func () (interface{}, error) {
+    var value testStruct
+    return value, errors.New("Error")
+  })
+
+  result := promise.GetResult()
+  if result.Error == nil {
+    t.Fatal("Error should have been returned from promise")
+  }
+}
+
 // make sure the promise is truly async
-func TestNewPromiseIsAsync (t *testing.T) {
+func TestCreatePromiseIsAsync (t *testing.T) {
   promiseComplete := false
 
   asyncFunc := func () (interface{}, error) {
@@ -61,35 +78,121 @@ func TestNewPromiseIsAsync (t *testing.T) {
     return promiseComplete, nil
   }
 
-  promise := New(asyncFunc)
+  promise := Create(asyncFunc)
 
   if promiseComplete == true {
-    t.Fatal("function passed to promise is not running asynchronously")
+    t.Fatal("Function passed to promise is not running asynchronously")
   }
 
-  result, ok := <-promise
-  if ok != true {
-    t.Fatal("result from promise was not received from the channel")
-  }
+  result := promise.GetResult()
 
   if result.Value != true || promiseComplete != true {
     t.Fail()
   }
 }
 
-func TestPromiseChannelCloses (t *testing.T) {
-  promise := New(func () (interface{}, error) {
+func TestPromiseAll (t *testing.T) {
+  promiseA := Create(func () (interface{}, error) {
+    time.Sleep(2 * time.Second)
+    return true, nil
+  })
+  promiseB := Create(func () (interface{}, error) {
+    time.Sleep(1 * time.Second)
+    return false, nil
+  })
+
+  combined := All(promiseA, promiseB)
+
+  result := combined.GetResult()
+  if result.Error != nil {
+    t.Fatal("Unexpected error from promises")
+  }
+  values := result.Values
+  resultLength := len(values)
+  if resultLength != 2 {
+    t.Fatalf("Expected result length to equal 2, got %s instead", resultLength)
+  }
+
+  if values[0] != true || values[1] != false {
+    t.Fatal("Values in the result did not match the promised values")
+  }
+}
+
+/**
+ * Ensure that channels are closed after a result is returned
+ * and that promises have the expected values
+ */
+func TestPromiseCleanup (t *testing.T) {
+  promise := Create(func () (interface{}, error) {
     return true, nil
   })
 
-  result, ok := <-promise
-  if result.Value != true && ok != true {
-    t.Fatal("result from promise was not received from the channel")
+  result := promise.GetResult()
+  if result.Error != nil {
+    t.Fatal("Unexpected error returned from promise")
+  }
+  if result.Value != true {
+    t.Fatal("Invalid result received from promise")
   }
 
-  result, stillOpen := <-promise
-
-  if result != nil || stillOpen == true {
+  if _, stillOpen := <-promise.channel; stillOpen {
     t.Fatal("Channel not closed")
+  }
+
+  if !promise.settled {
+    t.Fatal("Result was not marked as settled result was retrieved")
+  }
+
+  if result != promise.result {
+    t.Fatal("The internally stored result value does match was was returned from GetResult")
+  }
+}
+
+func TestPromiseCreateAll (t *testing.T) {
+  valueA := "value a"
+  valueB := "value b"
+  promise := CreateAll(
+    func () (interface{}, error) {
+      time.Sleep(1 * time.Second)
+      return valueA, nil
+    },
+    func () (interface{}, error) {
+      time.Sleep(2* time.Second)
+      return valueB, nil
+    },
+  )
+
+  result := promise.GetResult()
+  if result.Error != nil {
+    t.Fatal("Unexpected error returned from promise")
+  }
+
+  values := result.Values
+  if len(values) != 2 {
+    t.Fatal("Returned result does not match number of promises passed in")
+  }
+  if values[0] != valueA || values[1] != valueB {
+    t.Fatal("Returned values do not match what was returned from async functions")
+  }
+}
+
+func TestPromiseCreateAllError (t *testing.T) {
+  valueA := "value a"
+  valueB := "value b"
+
+  promise := CreateAll(
+    func () (interface{}, error) {
+      time.Sleep(1 * time.Second)
+      return valueA, errors.New("This should be part of the result")
+    },
+    func () (interface{}, error) {
+      time.Sleep(2 * time.Second)
+      return valueB, nil
+    },
+  )
+
+  result := promise.GetResult()
+  if result.Error == nil {
+    t.Fatal("Error should have been returned from promise")
   }
 }
