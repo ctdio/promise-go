@@ -67,6 +67,46 @@ func TestCreatePromiseError (t *testing.T) {
   }
 }
 
+/**
+ * Test to ensure that an already resolved promise just returns
+ * the same result
+ */
+func TestPromiseGetResult (t *testing.T) {
+  promise := Create(func () (interface{}, error) {
+    var value testStruct
+    return value, nil
+  })
+
+  result := promise.GetResult()
+  if result.Error != nil {
+    t.Fatal("Unexpected error returned from promise")
+  }
+  if promise.settled != true {
+    t.Fatal("Promise should have been marked as settled")
+  }
+  if result != promise.GetResult() {
+    t.Fatal("Promise should have returned the same result")
+  }
+}
+
+/**
+ * Test to ensure that an already resolved promise just returns
+ * the same result
+ */
+func TestPromiseChannelError (t *testing.T) {
+  promise := Create(func () (interface{}, error) {
+    time.Sleep(1 * time.Second)
+    return 2, nil
+  })
+
+  close(promise.channel)
+
+  result := promise.GetResult()
+  if result.Error == nil {
+    t.Fatal("Error should have been returned from promise")
+  }
+}
+
 // make sure the promise is truly async
 func TestCreatePromiseIsAsync (t *testing.T) {
   promiseComplete := false

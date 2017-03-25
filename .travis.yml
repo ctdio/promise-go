@@ -4,6 +4,10 @@ go:
   - master
   - 1.8
   - 1.7
-  - 1.x
+  - 1.6
 
-script: go test -v
+before_install:
+  - go get github.com/mattn/goveralls
+script:
+  - $HOME/gopath/bin/goveralls -service=travis-ci
+

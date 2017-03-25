@@ -20,9 +20,12 @@ func (p *Promise) GetResult () *Result {
     return p.result
   }
 
+  var result *Result = nil
+
   // otherwise wait for result
   result, ok := <-p.channel
   if !ok {
+    result = &Result{}
     result.Error = errors.New("Channel unexpectedly closed")
   }
   p.settled = true
@@ -44,6 +47,9 @@ func Create (function promiseFunction) *Promise {
 
   // run given function in a goroutine
   go func () {
+    defer func () {
+      recover()
+    }()
     res, err := function()
     channel <- &Result{res, err, 0}
     close(channel)
